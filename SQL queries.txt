@@ -1,0 +1,76 @@
+-- 1. Can a user show up more than once in the activity table? Yes or no, and why?
+ SELECT COUNT(uid) - COUNT(distinct uid) AS diff
+ FROM activity;
+
+-- 2. What type of join should we use to join the users table to the activity table?
+ SELECT u.id, a.uid
+ FROM users u
+ LEFT JOIN activity a
+ 	ON u.id = a.uid;
+
+ -- 3. What SQL function can we use to fill in NULL values?
+ SELECT COALESCE(gender, 'no gender') as Gender
+ FROM users;
+ 
+-- 4. What are the start and end dates of the experiment?
+ SELECT
+ 	MIN(dt) AS Start_Date,
+  MAX(dt) AS End_Date
+ FROM activity;
+
+--  5. How many total users were in the experiment?
+ SELECT COUNT(id) as Total_Users
+ FROM users;
+
+--  6. How many users were in the control and treatment groups?
+ SELECT
+ 	g.group,
+ 	COUNT(u.id)
+ FROM users u
+ JOIN groups g
+ 	ON u.id = g.uid
+ GROUP BY 1;
+
+--  7. What was the conversion rate of all users?
+ SELECT ROUND((COUNT(a.*) * 100.0 / COUNT(u.id)), 2) AS con_rate
+ FROM users u
+ LEFT JOIN activity a
+ 	ON a.uid = u.id;
+
+--  8. What is the user conversion rate for the control and treatment groups?
+ SELECT
+     g.group,
+     COUNT(DISTINCT CASE WHEN a.dt IS NOT NULL THEN u.id END) AS num_purchases,
+     COUNT(DISTINCT u.id) AS total_users
+ FROM
+     groups g
+ LEFT JOIN
+     users u ON g.uid = u.id
+ LEFT JOIN
+     activity a ON u.id = a.uid
+ GROUP BY
+     g.group;
+
+--  9. What is the average amount spent per user for the control and treatment groups, including users who did not convert?
+ SELECT g.group, ROUND(SUM(spent) / COUNT(DISTINCT g.uid), 2) AS avg_spent_per_user
+ FROM groups g
+ LEFT JOIN activity a
+ 	ON g.uid = a.uid
+ GROUP BY 1;
+
+--  Extract the analysis dataset
+SELECT
+    u.id AS user_id,
+    CASE WHEN u.country IS NULL THEN 'No Country' ELSE u.country END,
+    CASE WHEN u.gender IS NULL THEN 'No Gender' ELSE u.gender END,
+    CASE WHEN g.device IS NULL THEN 'No Device Type' ELSE g.device END,
+    g.group AS test_group,    
+    CASE WHEN a.spent > 0 THEN 'TRUE' ELSE 'FALSE' END AS converted,
+    CASE WHEN SUM(a.spent) IS NULL THEN 0 ELSE SUM(a.spent) END AS total_spent
+FROM users u
+LEFT JOIN
+    groups g ON u.id = g.uid
+LEFT JOIN
+		activity a ON u.id = a.uid
+GROUP BY
+    u.id, g.device, g.group, a.spent
